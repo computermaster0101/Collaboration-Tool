@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Excalidraw NoVNC Claude | Hand-drawn look & feel • Collaborative • Secure</title>
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, shrink-to-fit=no"
+    />
+    <meta name="referrer" content="origin" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="theme-color" content="#121212" />
+
+    <!-- Primary Meta Tags -->
+    <meta
+      name="title"
+      content="Excalidraw — Collaborative whiteboarding made easy"
+    />
+    <meta
+      name="description"
+      content="Excalidraw is a virtual collaborative whiteboard tool that lets you easily sketch diagrams that have a hand-drawn feel to them."
+    />
+    <meta name="image" content="https://excalidraw.com/og-image-3.png" />
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:site_name" content="Excalidraw" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://excalidraw.com" />
+    <meta
+      property="og:title"
+      content="Excalidraw — Collaborative whiteboarding made easy"
+    />
+    <meta property="og:image:alt" content="Excalidraw logo" />
+    <meta
+      property="og:description"
+      content="Excalidraw is a virtual collaborative whiteboard tool that lets you easily sketch diagrams that have a hand-drawn feel to them."
+    />
+    <meta property="og:image" content="https://excalidraw.com/og-image-3.png" />
+
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image" />
+    <meta property="twitter:site" content="@excalidraw" />
+    <meta property="twitter:url" content="https://excalidraw.com" />
+    <meta
+      property="twitter:title"
+      content="Excalidraw — Collaborative whiteboarding made easy"
+    />
+    <meta
+      property="twitter:description"
+      content="Excalidraw is a virtual collaborative whiteboard tool that lets you easily sketch diagrams that have a hand-drawn feel to them."
+    />
+    <meta
+      property="twitter:image"
+      content="https://excalidraw.com/og-image-3.png"
+    />
+
+    <link rel="canonical" href="https://excalidraw.com" />
+
+    <script>
+      try {
+        function setTheme(theme) {
+          if (theme === "dark") {
+            document.documentElement.classList.add("dark");
+          } else {
+            document.documentElement.classList.remove("dark");
+          }
+        }
+
+        function getTheme() {
+          const theme = window.localStorage.getItem("excalidraw-theme");
+
+          if (theme && theme === "system") {
+            return window.matchMedia("(prefers-color-scheme: dark)").matches
+              ? "dark"
+              : "light";
+          } else {
+            return theme || "light";
+          }
+        }
+
+        setTheme(getTheme());
+      } catch (e) {
+        console.error("Error setting dark mode", e);
+      }
+    </script>
+    <style>
+      html.dark {
+        background-color: #121212;
+        color: #fff;
+      }
+      body, html {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+      }
+      .container {
+        display: flex;
+        flex-direction: row;
+        height: 100vh;
+        width: 100vw;
+      }
+      .visible {
+        visibility: visible;
+        flex: 1;
+        width: auto; /* Ensure it occupies its intended width */
+        opacity: 1;
+        transition: flex 0.5s ease-in-out, opacity 0.5s ease-in-out, width 0.5s ease-in-out;
+      }
+
+      .invisible {
+        flex: 0;
+        width: 0; /* Shrinks smoothly */
+        opacity: 0;
+        transition: flex 0.5s ease-in-out, opacity 0.5s ease-in-out, width 0.5s ease-in-out;
+        pointer-events: none; /* Prevent interaction during hiding */
+      }
+
+      .left {
+        border: none;
+        height: 100vh;
+      }
+      .right {
+        flex: 2;
+        border: none;
+        height: 100vh;
+        min-width: 50px;
+      }
+      #control-panel {
+        position: fixed;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(255,255,255,0.9);
+        border-radius: 10px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        padding: 10px;
+        display: flex;
+        gap: 10px;
+        z-index: 20;
+      }
+      #root {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 1;
+        pointer-events: auto;
+      }
+
+      @media screen and (min-width: 1200px) {
+        #root {
+          user-select: auto;
+        }
+      }
+    </style>
+
+    <!-- Remaining meta tags and preconnect links from original file -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+
+    <!-- Excalidraw version -->
+    <meta name="version" content="{version}" />
+  </head>
+
+  <body>
+    <noscript> You need to enable JavaScript to run this app. </noscript>
+
+    <div class="container">
+      <iframe id="anthropic" src="http://localhost:3003" class="left invisible" allow="fullscreen"></iframe>
+      <iframe id="chat" src="http://localhost:3005" class="left invisible" allow="fullscreen"></iframe>
+      <iframe id="ai" src="http://localhost:3004" class="left invisible" allow="fullscreen"></iframe>
+      <iframe id="vnc" src="http://localhost:3001" class="right" allow="fullscreen"></iframe>
+    </div>
+
+    <div id="control-panel">
+      <button id="draw-button">Enable Draw</button>
+      <button id="anthropic-button">Show Claude</button>
+      <button id="ai-button">Show AI Chat</button>
+      <button id="chat-button">Show User Chat</button>
+      <button id="fullscreen-button">Full Screen</button>
+    </div>
+
+    <div id="root" class="invisible"></div>
+    <script type="module" src="index.tsx"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.js" integrity="sha512-luMnTJZ7oEchNDZAtQhgjomP1eZefnl82ruTH/3Oj/Yu5qYtwL7+dVRccACS/Snp1lFXq188XFipHKYE75IaQQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script>
+      document.addEventListener('DOMContentLoaded', () => {
+        try {
+          const socket = io.connect('http://localhost:3006/')
+          socket.off('toggle'); 
+          socket.on('toggle', function(data) {
+            console.log('Received toggle event:', data);
+              if (data.mode) {
+                  toggleMode(data.mode);
+              } else {
+                  console.warn('No mode provided in toggle event:', data);
+              }
+          });
+
+          const drawContainer = document.getElementById('root');
+          const drawButton = document.getElementById('draw-button');          
+          const anthropicContainer = document.getElementById('anthropic');
+          const anthropicButton = document.getElementById('anthropic-button');
+          const aiContainer = document.getElementById('ai');
+          const aiButton = document.getElementById('ai-button');
+          const chatContainer = document.getElementById('chat');
+          const chatButton = document.getElementById('chat-button')
+          const fullscreenButton = document.getElementById('fullscreen-button');
+          
+          drawContainer.style.pointerEvents = 'none';
+
+          let drawMode = false;
+          let controlMode = false;
+          let aiMode = false;
+          let chatMode = false;
+          let activeMode = false;
+
+          // Full Screen Toggle
+          fullscreenButton.addEventListener('click', () => {
+            if (!document.fullscreenElement) {
+              document.documentElement.requestFullscreen();
+              fullscreenButton.textContent = 'Exit Full Screen';
+            } else {
+              document.exitFullscreen();
+              fullscreenButton.textContent = 'Full Screen';
+            }
+          });
+
+          function toggleMode(mode) { 
+            // Define all modes and their related containers and buttons
+            const modes = {
+              draw: { flag: "drawMode", container: drawContainer, button: drawButton },
+              ai: { flag: "aiMode", container: aiContainer, button: aiButton },
+              chat: { flag: "chatMode", container: chatContainer, button: chatButton },
+              anthropic: { flag: "controlMode", container: anthropicContainer, button: anthropicButton },
+            };
+          
+            // Deactivate all modes
+            for (const key in modes) {
+              const { flag, container, button } = modes[key];
+              window[flag] = false; // Reset mode flags
+              container.classList.remove("visible");
+              container.classList.add("invisible");
+              button.textContent = `Show ${key.charAt(0).toUpperCase() + key.slice(1)}`;
+              if (key === "draw") container.style.pointerEvents = "none"; // Reset draw-specific behavior
+            }
+
+            // Activate the selected mode if it's not already active
+            if (activeMode !== mode) {
+              const { flag, container, button } = modes[mode];
+              window[flag] = true;
+              activeMode = mode;
+              container.classList.remove("invisible");
+              container.classList.add("visible");
+              button.textContent = `Hide ${mode.charAt(0).toUpperCase() + mode.slice(1)}`;
+              if (mode === "draw") container.style.pointerEvents = "auto"; // Enable draw-specific behavior
+            } else {
+              activeMode = false; // No mode active
+            }
+          };
+
+          drawButton.addEventListener("click", () => {
+            socket.emit('toggle', { mode: 'draw' });
+            toggleMode("draw");
+          });
+          
+          aiButton.addEventListener("click", () => {
+            socket.emit('toggle', { mode: 'ai' });
+            toggleMode("ai");
+          });
+          
+          chatButton.addEventListener("click", () => {
+            socket.emit('toggle', { mode: 'chat' });
+            toggleMode("chat");
+          });
+          
+          anthropicButton.addEventListener("click", () => {
+            socket.emit('toggle', { mode: 'anthropic' });
+            toggleMode("anthropic");
+          });
+
+        } catch (error) {
+          console.error('Initialization error:', error);
+        }
+      });
+    </script>
+      
+  </body>
+</html>

@@ -1,0 +1,9 @@
+flask
+flask_cors
+flask_session
+flask_socketio
+cachelib
+boto3
+openai
+google-generativeai
+python-dotenv

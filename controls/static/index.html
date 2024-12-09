@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Custom Control Panel | Embedded Excalidraw</title>
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, shrink-to-fit=no"
+    />
+    <meta name="referrer" content="origin" />
+    <meta name="theme-color" content="#121212" />
+
+    <style>
+      html.dark {
+        background-color: #121212;
+        color: #fff;
+      }
+      body, html {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+      }
+      .container {
+        display: flex;
+        flex-direction: row;
+        height: 100vh;
+        width: 100vw;
+      }
+      .visible {
+        visibility: visible;
+        flex: 1;
+        width: auto; 
+        opacity: 1;
+        transition: flex 0.5s ease-in-out, opacity 0.5s ease-in-out, width 0.5s ease-in-out;
+      }
+
+      .invisible {
+        flex: 0;
+        width: 0; 
+        opacity: 0;
+        transition: flex 0.5s ease-in-out, opacity 0.5s ease-in-out, width 0.5s ease-in-out;
+        pointer-events: none; 
+      }
+
+      .left {
+        border: none;
+        height: 100vh;
+      }
+      .right {
+        flex: 2;
+        border: none;
+        height: 100vh;
+        min-width: 50px;
+      }
+
+      #control-panel {
+        position: fixed;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(255, 255, 255, 0.9);
+        border-radius: 10px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        padding: 10px;
+        display: flex;
+        gap: 10px;
+        z-index: 20;
+      }
+      #excalidraw {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 1;
+        pointer-events: auto;
+      }
+      @media screen and (min-width: 1200px) {
+        #excalidraw {
+          user-select: auto;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <noscript> You need to enable JavaScript to run this app. </noscript>
+
+    <div class="container">
+      <iframe id="chat" src="http://localhost:3005" class="left invisible" allow="fullscreen"></iframe>
+      <iframe id="anthropic" src="http://localhost:3003" class="left invisible" allow="fullscreen"></iframe>
+      <iframe id="ai" src="http://localhost:3004" class="left invisible" allow="fullscreen"></iframe>
+      <iframe id="excalidraw" src="http://localhost:3000" class="right invisible" allow="fullscreen"></iframe>
+      <iframe id="vnc" src="http://localhost:3001" class="right" allow="fullscreen"></iframe>
+    </div>
+
+    <div id="control-panel">
+      <button id="draw-button">Enable Draw</button>
+      <button id="anthropic-button">Show Claude</button>
+      <button id="ai-button">Show AI Chat</button>
+      <button id="chat-button">Show User Chat</button>
+      <button id="fullscreen-button">Full Screen</button>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.js" integrity="sha512-luMnTJZ7oEchNDZAtQhgjomP1eZefnl82ruTH/3Oj/Yu5qYtwL7+dVRccACS/Snp1lFXq188XFipHKYE75IaQQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="index.js" defer></script>
+
+  </body>
+</html>
