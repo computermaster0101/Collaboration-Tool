@@ -2,11 +2,8 @@ FROM docker.io/ubuntu:22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV KIOSK_URL="https://www.google.com"
-ENV ROOM_SERVER_URL="http://localhost:3002"
-ENV ROOM_SECRET="mytestkey"
-ENV ROOM_SERVER_MAX_AGE=3600
-ENV ROOM_SERVER_MAX_CLIENTS=10
-ENV STREAMLIT_SERVER_PORT=3003
+ENV VITE_APP_WS_SERVER_URL="http://room.excalidraw.localhost:8080/"
+ENV ROOM_DOMAIN_ADDRESS="room.excalidraw.localhost"
 
 ENV AWS_ACCESS_KEY_ID=""
 ENV AWS_SECRET_ACCESS_KEY=""
@@ -16,7 +13,11 @@ ENV AWS_REGION="us-west-2"
 ENV OPENAI_API_KEY=""
 ENV GEMINI_API_KEY=""
 
-ARG DISPLAY_NUM=99
+ENV ROOM_SERVER_MAX_AGE=3600
+ENV ROOM_SERVER_MAX_CLIENTS=10
+ENV STREAMLIT_SERVER_PORT=3003
+
+ARG DISPLAY_NUM=1
 ARG HEIGHT=768
 ARG WIDTH=1024
 ENV DISPLAY_NUM=$DISPLAY_NUM
@@ -60,9 +61,11 @@ RUN apt-get update \
     libxmlsec1-dev \
     libffi-dev \
     liblzma-dev \
+    gettext \
     # Network tools
     net-tools \
     netcat \
+    nginx \
     # PPA req
     software-properties-common \
     # Userland apps
@@ -119,7 +122,8 @@ RUN curl -fsSL https://deb.nodesource.com/setup_18.x | bash - \
 RUN git clone https://github.com/novnc/noVNC.git /opt/novnc \
     && git clone https://github.com/novnc/websockify /opt/novnc/utils/websockify \
     && mkdir ~/.vnc \
-    && x11vnc -storepasswd chrome ~/.vnc/passwd 
+    && x11vnc -storepasswd chrome ~/.vnc/passwd \
+    && cp /opt/novnc/vnc.html /opt/novnc/index.html 
  
 RUN git clone https://github.com/excalidraw/excalidraw.git /opt/excalidraw \
     && cd /opt/excalidraw \
@@ -136,20 +140,18 @@ RUN git clone https://github.com/anthropics/anthropic-quickstarts.git /opt/anthr
     && cp -r /opt/anthropic-quickstart/computer-use-demo/computer_use_demo ~/ \
     && python -m pip install -r ~/computer_use_demo/requirements.txt
 
-COPY novnc/index.html /opt/novnc
 COPY excalidraw/index.html /opt/excalidraw/excalidraw-app
+COPY excalidraw/system_prompt.txt /opt/excalidraw/excalidraw-app
 COPY computer_use_demo /home/root
+COPY nginx.conf.template /etc/nginx/nginx.conf.template
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
-COPY ai-chat /opt/ai-chat
-WORKDIR /opt/ai-chat
-RUN python -m pip install -r requirements.txt
 
-COPY user-chat /opt/user-chat
-WORKDIR /opt/user-chat
-RUN python -m pip install -r requirements.txt
 
-COPY controls /opt/controls
-WORKDIR /opt/controls
+
+COPY socket-server /opt/socket-server
+WORKDIR /opt/socket-server
 RUN python -m pip install -r requirements.txt
 
 RUN mkdir -p /etc/chromium/policies/managed && \
@@ -223,23 +225,25 @@ RUN echo "[supervisord]\n\
     autorestart=true\n\
     user=root\n\
     directory=/home/root\n\n\
-    [program:ai-chat]\n\
-    command=python WebSrvr.py > /tmp/aichat_stdout.log &\n\
+    [program:socket-server]\n\
+    command=python WebSrvr.py > /tmp/socket-server_stdout.log &\n\
     autorestart=true\n\
     user=root\n\
-    directory=/opt/ai-chat\n\n\
-    [program:user-chat]\n\
-    command=python WebSrvr.py > /tmp/userchat_stdout.log &\n\
+    directory=/opt/socket-server\n\n\
+    [program:nginx]\n\
+    command=nginx -g 'daemon off;'\n\
     autorestart=true\n\
+    priority=5\n\
     user=root\n\
-    directory=/opt/user-chat\n\n\
-    [program:controls]\n\
-    command=python WebSrvr.py > /tmp/controls_stdout.log &\n\
-    autorestart=false\n\
-    user=root\n\
-    directory=/opt/controls" > /etc/supervisor/conf.d/supervisord.conf
+    stdout_logfile=/var/log/nginx/access.log\n\
+    stderr_logfile=/var/log/nginx/error.log" > /etc/supervisor/conf.d/supervisord.conf
 
+EXPOSE 8080
+# 3000 - excalidraw
+# 3001 - novnc
+# 3002 - excalidraw-room
+# 3003 - anthropic
+# 3004 - socket-server
 
-EXPOSE 3000 3001 3002 3003 3004 3005 3006
-
-CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
+#CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
+ENTRYPOINT ["/entrypoint.sh"]

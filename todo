@@ -1,10 +1,2 @@
 // 1. implement ping/pong if we see its needed
-// 2. move controls to socket based webapp - cannot do and keep all functions with low LOE
-// 3. revert exclidraw to default index.html - was dependent on previews item
-// 4. add ngx to route connections
-//     a. / -> controls
-//     b. /excalidraw -> excalidraw
-//     c. /user-chat -> user-chat
-//     d. /ai-chat -> ai-chat
-//     e. /control -> computer_use_demo
 // 5. update gemini to use conversational context
