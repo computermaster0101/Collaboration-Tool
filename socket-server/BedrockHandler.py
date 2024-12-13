@@ -15,22 +15,19 @@ class Claude:
         )
         self.bedrock = self.session.client('bedrock')
         self.bedrock_runtime = self.session.client('bedrock-runtime')
-        # Just shows an example of how to retrieve information about available models
-        # foundation_models = self.bedrock.list_foundation_models()
-        # print("foundation models:", json.dumps(foundation_models, indent=4))
+
 
     def format_conversation(self, conversation):
         print("Claude.format_conversation") if debug else None
         formattedConversation = []
-        is_ai = False
         for message in conversation:
-            role = 'assistant' if is_ai else "user"
-            formattedConversation.append({
-                "role": role,
-                "content": message
-            })
-            is_ai = not is_ai
-        print(f"formattedConversation: {formattedConversation}") if debug else None
+            if message['username'] == 'System':
+                continue
+            elif message['username'] == 'Claude':
+                formattedConversation.append({'role': 'assistant', 'content': f"{message['message']}"})
+            else:
+                formattedConversation.append({'role': 'user', 'content': f"{message['username']}: {message['message']}"})
+        
         return formattedConversation
         
     def get_response(self, request):
@@ -51,16 +48,10 @@ class Claude:
                 accept='application/json',
                 contentType='application/json'
             )
-
             
             response_body = response['body'].read().decode('utf-8')
             response_text = json.loads(response_body)['content'][0]['text']
-            
             response_text = re.sub(r'\*.*?\*', '', response_text)
-
-            print(f"response {response_text}")
-            print("anthropic response:", response_text)
-
             answer = response_text
 
         except Exception as e:

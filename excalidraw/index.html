@@ -269,7 +269,7 @@
         box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
         border-radius: 8px; 
         width: 95%; 
-        height: 95%;
+        height: 80%;
       }
       .overlay {
         display: none;
@@ -411,7 +411,7 @@
             </div>
             <div class="input-column">
               <label for="max_token">Max Tokens:</label>
-              <input type="number" id="max_token" name="max_token" min="250" max="4096" value="250">
+              <input type="number" id="max_token" name="max_token" min="50" max="4096" value="50">
             </div>
           </div>
           <label for="paragraphInput">System Prompt:</label><br>
@@ -634,7 +634,7 @@
             const max_token = maxTokenInput.value;
             const system_prompt = systemPromptInput.value;
             if (message !== '') {
-                messageInput.value = '';
+                promptInput.value = '';
                 mysockets.emit('ai-prompt', {
                     message: message, 
                     temp: temp, 
@@ -656,6 +656,25 @@
             chatOpenai.innerHTML = "<div><strong>System:</strong> Chat Reset!</div>"; 
             mysockets.emit('reset-ai-chats')
           };
+
+          function removeThinkingMessage(llm) {
+            if (llm === 'Claude') {
+                const thinkingMessagesClaude = chatClaude.getElementsByClassName('thinking-message');
+                while (thinkingMessagesClaude.length > 0) {
+                    thinkingMessagesClaude[0].remove();
+                }
+            } else if (llm === 'Gemini') {
+                const thinkingMessagesGemini = chatGemini.getElementsByClassName('thinking-message');
+                while (thinkingMessagesGemini.length > 0) {
+                    thinkingMessagesGemini[0].remove();
+                }
+            } else if (llm === 'OpenAI') {
+                const thinkingMessagesOpenAI = chatOpenai.getElementsByClassName('thinking-message');
+                while (thinkingMessagesOpenAI.length > 0) {
+                    thinkingMessagesOpenAI[0].remove();
+                }
+            }
+          }
 
           mysockets.on('welcome', function(data){
             const { username, timestamp } = data;
@@ -715,8 +734,8 @@
             addAIMessage('System', `${data.message} <span class="spinner"></span>`, data.timestamp, 'thinking-message');
           });
           
-          sendMessageButton.addEventListener('click',sendMessage())
-          sendPromptButton.addEventListener('click',sendPrompt())
+          sendMessageButton.addEventListener('click',sendMessage)
+          sendPromptButton.addEventListener('click',sendPrompt)
 
           resetMessagesButton.addEventListener('click', resetUserChat)
           resetPromptsButton.addEventListener('click', resetAIChats)

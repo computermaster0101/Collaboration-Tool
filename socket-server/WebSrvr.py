@@ -158,8 +158,8 @@ class WebSrvr:
         @self.socketio.on('ai-prompt')
         def handle_ai_prompt(data):
             client_id = session.get('client_id')
-            print("Received chat query:", data)
             print("Received chat query:", data['message'])  
+
             if client_id in self.connected_users:
                 username = self.connected_users[client_id]
                 message_object = {
@@ -187,48 +187,55 @@ class WebSrvr:
                     'message': "One moment I'm thinking...",
                     'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                 })
-
+                
                 def process_claude():
                     claude_start_time = time.time()  
                     claude_conversation = self.conversations.get_conversation(self.claude_conversation_id)
                     claude_response = self.claude.process_message(data, claude_conversation)
-                    self.conversations.add_message(self.claude_conversation_id, claude_response)
-                    self.conversations.trunctate_history(self.claude_conversation_id)
+                    #claude_response = "response blocked by code comment"
                     claude_end_time = time.time()
                     claude_time_taken = claude_end_time - claude_start_time
-                    self.socketio.emit('ai-response', {
+                    claude_response_message = {
                         'username': 'Claude', 
                         'message': f"{claude_time_taken}s<br>{claude_response}",
                         'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                        })
+                        }
+                    self.conversations.add_message(self.claude_conversation_id, claude_response_message)
+                    self.conversations.trunctate_history(self.claude_conversation_id)
+                    self.socketio.emit('ai-response', claude_response_message)
 
                 def process_gemini():
                     gemini_start_time = time.time()
                     gemini_coversation = self.conversations.get_conversation(self.gemini_conversation_id)
-                    gemini_response = self.gemini.get_response(f"{data['system_prompt']}{data['message']}")
-                    self.conversations.add_message(self.gemini_conversation_id, gemini_response)
-                    self.conversations.trunctate_history(self.gemini_conversation_id)
+                    #gemini_response = self.gemini.process_message(data, gemini_coversation)
+                    gemini_response = "response blocked by code comment"
                     gemini_end_time = time.time()
                     gemini_time_taken = gemini_end_time - gemini_start_time
-                    self.socketio.emit('ai-response', {
+                    gemini_response_message = {
                         'username': 'Gemini', 
                         'message': f"{gemini_time_taken}s<br>{gemini_response}",
                         'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                        })
+                        }
+                    self.conversations.add_message(self.gemini_conversation_id, gemini_response_message)
+                    self.conversations.trunctate_history(self.gemini_conversation_id)
+                    self.socketio.emit('ai-response', gemini_response_message)
 
                 def process_openai():
                     openai_start_time = time.time()        
                     openai_conversation = self.conversations.get_conversation(self.openai_conversation_id)
                     openai_response = self.openai.process_message(data, openai_conversation)
-                    self.conversations.add_message(self.openai_conversation_id, openai_response)
-                    self.conversations.trunctate_history(self.openai_conversation_id)
+                    #openai_response = "response blocked by code comment"
+                    openai_response = self.openai.clean_response(openai_response)
                     openai_end_time = time.time()
                     openai_time_taken = openai_end_time - openai_start_time
-                    self.socketio.emit('ai-response', {
+                    openai_response_message = {
                         'username': 'OpenAI', 
                         'message': f"{openai_time_taken}s<br>{openai_response}",
                         'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                        })
+                        }
+                    self.conversations.add_message(self.openai_conversation_id, openai_response_message)
+                    self.conversations.trunctate_history(self.openai_conversation_id)
+                    self.socketio.emit('ai-response', openai_response_message)
 
                 threads = []
                 threads.append(threading.Thread(target=process_claude))

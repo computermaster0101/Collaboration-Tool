@@ -2,7 +2,7 @@ from openai import OpenAI
 from pathlib import Path
 import re
 
-debug = True
+debug = False
 openai_voice = "alloy"
 
 class MyOpenAI:
@@ -22,17 +22,15 @@ class MyOpenAI:
         print("MyOpenAI.format_conversation") if debug else None
         formattedConversation = [
             {"role": "system", "content": system_prompt},
-            # {"role": "assistant", "content": "Hello."},
-            # {"role": "user", "content": initial_message}
         ]
-        is_ai = False
         for message in conversation:
-            role = 'assistant' if is_ai else "user"
-            formattedConversation.append({
-                "role": role,
-                "content": message
-            })
-            is_ai = not is_ai
+            if message['username'] == 'System':
+                continue
+            elif message['username'] == 'OpenAI':
+                formattedConversation.append({'role': 'assistant', 'content': f"{message['message']}"})
+            else:
+                formattedConversation.append({'role': 'user', 'content': f"{message['username']}: {message['message']}"})
+
         print(f"formattedConversation: {formattedConversation}") if debug else None
         return formattedConversation
     

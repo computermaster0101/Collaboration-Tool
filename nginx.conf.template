@@ -11,25 +11,19 @@ http {
         '' close;
     }
 
-    server {
-        listen 8080;
-        server_name ${ROOM_DOMAIN_ADDRESS};
-
-        location / {
-            proxy_pass http://localhost:3002;
-            proxy_http_version 1.1;
-            proxy_set_header Upgrade $http_upgrade;
-            proxy_set_header Connection $connection_upgrade;
-            proxy_set_header Host $host;
-        }
-    }
+    
 
     server {
         listen 8080;
-        server_name localhost;
+        server_name ${DOMAIN_ADDRESS};
 
         access_log /var/log/nginx/access.log;
         error_log /var/log/nginx/error.log debug;
+
+        location /health {
+            return 200 'OK';
+            add_header Content-Type text/plain;
+        }
 
         location / {
             proxy_pass http://localhost:3000;
@@ -66,6 +60,19 @@ http {
             proxy_read_timeout 300s;
             proxy_send_timeout 300s;
             keepalive_timeout 300s;
+        }
+    }
+
+    server {
+        listen 8080;
+        server_name ${ROOM_DOMAIN_ADDRESS};
+
+        location / {
+            proxy_pass http://localhost:3002;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection $connection_upgrade;
+            proxy_set_header Host $host;
         }
     }
 }

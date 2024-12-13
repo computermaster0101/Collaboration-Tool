@@ -2,8 +2,9 @@ FROM docker.io/ubuntu:22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV KIOSK_URL="https://www.google.com"
-ENV VITE_APP_WS_SERVER_URL="http://room.excalidraw.localhost:8080/"
-ENV ROOM_DOMAIN_ADDRESS="room.excalidraw.localhost"
+ENV VITE_APP_WS_SERVER_URL="http://excalidraw-room.localhost:8080/"
+ENV ROOM_DOMAIN_ADDRESS="excalidraw-room.localhost"
+ENV DOMAIN_ADDRESS="localhost"
 
 ENV AWS_ACCESS_KEY_ID=""
 ENV AWS_SECRET_ACCESS_KEY=""
