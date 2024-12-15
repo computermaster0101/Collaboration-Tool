@@ -5,12 +5,13 @@ ENV KIOSK_URL="https://www.google.com"
 ENV VITE_APP_WS_SERVER_URL="http://excalidraw-room.localhost:8080/"
 ENV ROOM_DOMAIN_ADDRESS="excalidraw-room.localhost"
 ENV DOMAIN_ADDRESS="localhost"
+ENV SERVICE_URL="http://localhost:8080"
 
 ENV AWS_ACCESS_KEY_ID=""
 ENV AWS_SECRET_ACCESS_KEY=""
 ENV AWS_SESSION_TOKEN=""
 ENV API_PROVIDER="bedrock"
-ENV AWS_REGION="us-west-2"
+ENV AWS_REGION="us-east-1"
 ENV OPENAI_API_KEY=""
 ENV GEMINI_API_KEY=""
 
@@ -141,7 +142,7 @@ RUN git clone https://github.com/anthropics/anthropic-quickstarts.git /opt/anthr
     && cp -r /opt/anthropic-quickstart/computer-use-demo/computer_use_demo ~/ \
     && python -m pip install -r ~/computer_use_demo/requirements.txt
 
-COPY excalidraw/index.html /opt/excalidraw/excalidraw-app
+COPY excalidraw/index.html.template /opt/excalidraw/excalidraw-app
 COPY excalidraw/system_prompt.txt /opt/excalidraw/excalidraw-app
 COPY computer_use_demo /home/root
 COPY nginx.conf.template /etc/nginx/nginx.conf.template
