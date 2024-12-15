@@ -47,6 +47,7 @@ class WebSrvr:
 
         self.connected_users = {}
         self.active_mode = None 
+        self.draw_status = False
         self.conversations = ConversationHandler()
 
         self.static_coversation_key = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(20))
@@ -102,6 +103,8 @@ class WebSrvr:
 
                 if self.active_mode:
                     emit('toggle', {'mode': self.active_mode}, to=client_id)
+                if self.draw_status:
+                    emit('toggleStatus', to=client_id)
                 self.socketio.emit('history', history, room=client_id)
                 self.socketio.emit('welcome', connected_user, room=client_id)
                 self.socketio.emit('system-message', message_object, include_self=False)
@@ -140,6 +143,12 @@ class WebSrvr:
                 print(f"Toggle mode requested by {client_id}: {mode}")
                 self.active_mode = mode
                 emit('toggle', {'mode': mode}, broadcast=True, include_self=False)
+
+        @self.socketio.on('toggleStatus')
+        def handle_toggleStatus():
+            client_id = request.sid
+            self.draw_status = not self.draw_status
+            emit('toggleStatus', broadcast=True, include_self=False)
 
         @self.socketio.on('user-message')
         def handle_user_message(data):

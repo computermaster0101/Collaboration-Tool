@@ -242,6 +242,11 @@
       .button-container button:hover {
         background-color: #555;
       }
+      .disabled-button {
+        background-color: #cccccc;
+        color: #666666;
+        cursor: not-allowed;
+      }
       .spinner {
         display: inline-block;
         width: 24px;
@@ -326,6 +331,7 @@
       .popup button:hover {
         background-color: #0056b3;
       }
+
     </style>
 
     <!-- Remaining meta tags and preconnect links from original file -->
@@ -426,6 +432,7 @@
     
     <div id="control-panel">
       <button id="draw-button">Show Draw</button>
+      <button id="draw-status-button" class="disabled-button">Disable Draw</button>
       <button id="anthropic-button">Show Claude</button>
       <button id="ai-button">Show AI Chat</button>
       <button id="chat-button">Show User Chat</button>
@@ -447,7 +454,8 @@
           
           //This code controls display and toggles
           const drawContainer = document.getElementById('root');
-          const drawButton = document.getElementById('draw-button');          
+          const drawButton = document.getElementById('draw-button');    
+          const drawStatusButton = document.getElementById('draw-status-button');  
           const anthropicContainer = document.getElementById('anthropic');
           const anthropicButton = document.getElementById('anthropic-button');
           const aiContainer = document.getElementById('ai');
@@ -459,6 +467,7 @@
           drawContainer.style.pointerEvents = 'none';
           
           let activeMode = false;
+          let drawStatus = true;
 
           // Full Screen Toggle
           fullscreenButton.addEventListener('click', () => {
@@ -488,6 +497,7 @@
               button.textContent = `Show ${key.charAt(0).toUpperCase() + key.slice(1)}`;
               if (key === "draw") {
                 container.style.pointerEvents = "none";
+                drawStatusButton.classList.add("disabled-button")
               }
             }
 
@@ -499,12 +509,26 @@
               container.classList.add("visible");
               button.textContent = `Hide ${mode.charAt(0).toUpperCase() + mode.slice(1)}`;
               if (mode === "draw") {
-                container.style.pointerEvents = "auto";
+                if (drawStatus){
+                  container.style.pointerEvents = "auto";
+                };
+                drawStatusButton.classList.remove("disabled-button")
               };
             } else {
               activeMode = false;
             }
           };
+
+          function toggleStatus() {
+            if (drawStatus){
+              drawStatusButton.textContent = "Enable Draw"
+              drawContainer.style.pointerEvents = "none";
+            } else {
+              drawStatusButton.textContent = "Disable Draw"
+              drawContainer.style.pointerEvents = "auto";
+            }
+            drawStatus = !drawStatus
+          }
 
           // emit toggle events to the server
           drawButton.addEventListener("click", () => {
@@ -512,6 +536,11 @@
             toggleMode("draw");
           });
           
+          drawStatusButton.addEventListener("click", () => {
+            mysockets.emit('toggleStatus');
+            toggleStatus();
+          })
+
           aiButton.addEventListener("click", () => {
             mysockets.emit('toggle', { mode: 'ai' });
             toggleMode("ai");
@@ -529,14 +558,17 @@
           
           // on toggle event toggle the mode
           mysockets.on('toggle', function(data) {
-          console.log('Received toggle event:', data);
             if (data.mode) {
                 toggleMode(data.mode);
             } else {
                 console.warn('No mode provided in toggle event:', data);
             }
           });
-
+          
+          // on toggle event toggle the status
+          mysockets.on('toggleStatus', function(){
+            toggleStatus();
+          });
           // This code controls chat functions
           const messageInput = document.getElementById('message-input');
           const sendMessageButton = document.getElementById('send-message-btn');
