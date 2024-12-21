@@ -32,7 +32,7 @@ class WebSrvr:
         self.gemini = MyGemini(self.gemini_api_key)
         
         self.app = FastAPI()
-        self.sio = AsyncServer(async_mode='asgi', cors_allowed_origins='*', ping_interval=60, ping_timeout=28800)
+        self.sio = AsyncServer(async_mode='asgi', cors_allowed_origins='*', ping_interval=45, ping_timeout=28800)
         self.socket_app = ASGIApp(self.sio)
         self.app.mount("/socket.io", self.socket_app)
         self.host = host
@@ -41,6 +41,7 @@ class WebSrvr:
         self.connected_users = {}
         self.active_mode = None 
         self.draw_status = False
+        self.desktop_status = True
 
         with open('default_system_prompt.txt', 'r') as file:
             system_prompt = file.read().strip()
@@ -117,6 +118,8 @@ class WebSrvr:
                     await self.sio.emit('toggle', {'mode': self.active_mode}, to=client_id)
                 if self.draw_status:
                     await self.sio.emit('toggleStatus', to=client_id)
+                if not self.desktop_status:
+                    await self.sio.emit('toggleDesktop', to=client_id)
                 await self.sio.emit('updateModelOptions', self.model_options, to=client_id)
                 await self.sio.emit('history', history, to=client_id)
                 await self.sio.emit('welcome', connected_user, to=client_id)
@@ -163,6 +166,11 @@ class WebSrvr:
         async def toggleStatus(client_id):
             self.draw_status = not self.draw_status
             await self.sio.emit('toggleStatus', skip_sid=client_id)
+
+        @self.sio.event
+        async def toggleDesktop(client_id):
+            self.desktop_status = not self.desktop_status
+            await self.sio.emit('toggleDesktop', skip_sid=client_id)
 
         @self.sio.event
         async def userMessage(client_id, data):

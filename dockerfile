@@ -167,7 +167,7 @@ RUN mkdir -p /etc/chromium/policies/managed && \
     }' > /etc/chromium/policies/managed/policy.json
 
 RUN echo "#!/bin/bash\n\
-    Xvfb :1 -screen 0 1920x1080x24 &\n\
+    Xvfb :1 -screen 0 1024x768x24 &\n\
     export DISPLAY=:1\n\
     fluxbox &\n\
     x11vnc -forever -nopw -shared -rfbport 5900 -display :1 &\n\
