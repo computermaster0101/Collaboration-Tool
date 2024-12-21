@@ -1,18 +1,14 @@
-import eventlet
-eventlet.monkey_patch()
-
 import secrets
 import string
-import threading
 import os
 import time
 
-from flask import Flask, request, send_from_directory, session
-from flask_session import Session
-from flask_socketio import SocketIO, emit
-from flask_cors import CORS
 from dotenv import load_dotenv
 from datetime import datetime
+from fastapi import FastAPI, Cookie, Response
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+from socketio import AsyncServer, ASGIApp
 
 from MyOpenAI import MyOpenAI
 from BedrockHandler import Claude
@@ -35,53 +31,63 @@ class WebSrvr:
         self.claude = Claude(self.aws_access_key_id, self.aws_secret_access_key, self.aws_session_token)
         self.gemini = MyGemini(self.gemini_api_key)
         
-        self.app = Flask(__name__)
-        self.app.config['SECRET_KEY'] = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(24))
-        self.app.config['SESSION_TYPE'] = 'filesystem'
-        Session(self.app)
-        CORS(self.app, resources={r"/*": {"origins": "*"}})
-
+        self.app = FastAPI()
+        self.sio = AsyncServer(async_mode='asgi', cors_allowed_origins='*', ping_interval=60, ping_timeout=28800)
+        self.socket_app = ASGIApp(self.sio)
+        self.app.mount("/socket.io", self.socket_app)
         self.host = host
         self.port = port
-        self.socketio = SocketIO(self.app, cors_allowed_origins="*")
 
         self.connected_users = {}
         self.active_mode = None 
         self.draw_status = False
         self.conversations = ConversationHandler()
 
-        self.static_coversation_key = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(20))
-        self.users_conversation_id = self.conversations.create_conversation(f'{self.static_coversation_key}-users')
-        self.claude_conversation_id = self.conversations.create_conversation(f'{self.static_coversation_key}-claude')
-        self.gemini_conversation_id = self.conversations.create_conversation(f'{self.static_coversation_key}-gemini')
-        self.openai_conversation_id = self.conversations.create_conversation(f'{self.static_coversation_key}-openai')
+        self.static_conversation_key = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(20))
+        self.users_conversation_id = self.conversations.create_conversation(f'{self.static_conversation_key}-users')
+        self.claude_conversation_id = self.conversations.create_conversation(f'{self.static_conversation_key}-claude')
+        self.gemini_conversation_id = self.conversations.create_conversation(f'{self.static_conversation_key}-gemini')
+        self.openai_conversation_id = self.conversations.create_conversation(f'{self.static_conversation_key}-openai')
 
-        @self.app.route('/')
-        def index():
-            return send_from_directory('static', 'index.html')
+        self.setup_routes()
+        self.setup_socket_events()
 
-        @self.app.route('/index.js')
-        def js():
-            return send_from_directory('static', 'index.js')
+    def setup_routes(self):
+        @self.app.get('/')
+        async def index():
+            return FileResponse('static/index.html')
 
-        @self.app.route('/index.css')
-        def css():
-            return send_from_directory('static', 'index.css')
-
-        @self.app.route('/favicon.ico')
-        def favicon():
-            return send_from_directory('static', 'favicon.ico')
+        @self.app.get('/favicon.ico')
+        async def favicon():
+            return FileResponse('static/favicon.ico')
         
-        @self.app.route('/system_prompt.txt')
-        def prompt():
-            return send_from_directory('static', 'system_prompt.txt') 
+        @self.app.get('/system_prompt.txt')
+        async def system_prompt():
+            return FileResponse('static/system_prompt.txt') 
         
-        @self.socketio.on('connect')
-        def handle_connect():
+    def setup_socket_events(self):
+        @self.sio.event
+        async def connect(client_id, environ):
             try:
-                client_id = request.sid
-                session['client_id'] = client_id
-                username = f"user_{secrets.randbelow(9000) + 1000}"
+                # Check for username cookie in headers
+                headers = environ.get('asgi.scope', {}).get('headers', [])
+                cookie_header = None
+                for name, value in headers:
+                    if name.decode('utf-8').lower() == 'cookie':
+                        cookie_header = value.decode('utf-8')
+                        break
+
+                username = None
+                if cookie_header:
+                    # Parse cookies manually since we can't use FastAPI's Cookie dependency here
+                    cookies = dict(cookie.split('=') for cookie in cookie_header.split('; '))
+                    username = cookies.get('username')
+
+                if not username:
+                    username = f"user_{secrets.randbelow(9000) + 1000}"
+                    # Set cookie through socket.io
+                    await self.sio.emit('set_username_cookie', {'username': username}, room=client_id)
+
                 timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                 self.connected_users[client_id] = username
 
@@ -102,12 +108,12 @@ class WebSrvr:
                 }
 
                 if self.active_mode:
-                    emit('toggle', {'mode': self.active_mode}, to=client_id)
+                    await self.sio.emit('toggle', {'mode': self.active_mode}, to=client_id)
                 if self.draw_status:
-                    emit('toggleStatus', to=client_id)
-                self.socketio.emit('history', history, room=client_id)
-                self.socketio.emit('welcome', connected_user, room=client_id)
-                self.socketio.emit('system-message', message_object, include_self=False)
+                    await self.sio.emit('toggleStatus', to=client_id)
+                await self.sio.emit('history', history, room=client_id)
+                await self.sio.emit('welcome', connected_user, room=client_id)
+                await self.sio.emit('systemMessage', message_object, skip_sid=client_id)
                 self.conversations.add_message(self.users_conversation_id, message_object)
                 self.conversations.add_message(self.claude_conversation_id, message_object)
                 self.conversations.add_message(self.gemini_conversation_id, message_object)
@@ -117,9 +123,8 @@ class WebSrvr:
             except Exception as e:
                 print(f"Error during connect: {e}")
 
-        @self.socketio.on('disconnect')
-        def handle_disconnect():
-            client_id = session.get('client_id')
+        @self.sio.event
+        async def disconnect(client_id):
             if client_id in self.connected_users:
                 username = self.connected_users.pop(client_id)
                 timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -128,31 +133,28 @@ class WebSrvr:
                     'message': f"{username} has left the chat.",
                     'timestamp': timestamp
                 }
-                self.socketio.emit('system-message', message_object)
+                await self.sio.emit('systemMessage', message_object)
                 self.conversations.add_message(self.users_conversation_id, message_object)
                 self.conversations.add_message(self.claude_conversation_id, message_object)
                 self.conversations.add_message(self.gemini_conversation_id, message_object)
                 self.conversations.add_message(self.openai_conversation_id, message_object)
                 print(f"Client disconnected: {client_id} ({username})")
 
-        @self.socketio.on('toggle')
-        def handle_toggle(data):
-            client_id = request.sid
+        @self.sio.event
+        async def toggle(client_id, data):
             mode = data.get('mode')
             if mode:
                 print(f"Toggle mode requested by {client_id}: {mode}")
                 self.active_mode = mode
-                emit('toggle', {'mode': mode}, broadcast=True, include_self=False)
+                await self.sio.emit('toggle', {'mode': mode}, skip_sid=client_id)
 
-        @self.socketio.on('toggleStatus')
-        def handle_toggleStatus():
-            client_id = request.sid
+        @self.sio.event
+        async def toggleStatus(client_id):
             self.draw_status = not self.draw_status
-            emit('toggleStatus', broadcast=True, include_self=False)
+            await self.sio.emit('toggleStatus', skip_sid=client_id)
 
-        @self.socketio.on('user-message')
-        def handle_user_message(data):
-            client_id = session.get('client_id')
+        @self.sio.event
+        async def userMessage(client_id, data):
             if client_id in self.connected_users:
                 username = self.connected_users[client_id]
                 timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -162,11 +164,10 @@ class WebSrvr:
                     'timestamp': timestamp
                 }
                 self.conversations.add_message(self.users_conversation_id, message_object)
-                self.socketio.emit('user-message', message_object)
+                await self.sio.emit('userMessage', message_object)
 
-        @self.socketio.on('ai-prompt')
-        def handle_ai_prompt(data):
-            client_id = session.get('client_id')
+        @self.sio.event
+        async def aiPrompt(client_id, data):
             print("Received chat query:", data['message'])  
 
             if client_id in self.connected_users:
@@ -179,96 +180,109 @@ class WebSrvr:
                 self.conversations.add_message(self.claude_conversation_id, message_object)
                 self.conversations.add_message(self.gemini_conversation_id, message_object)
                 self.conversations.add_message(self.openai_conversation_id, message_object)
-                self.socketio.emit('ai-message', message_object)
+                await self.sio.emit('aiMessage', message_object)
 
             if data['message'].lower() in ["", "hi", "hello", "hey"]: 
                 echo_start_time = time.time()  
                 echo_end_time = time.time()  
                 echo_time_taken = echo_start_time - echo_end_time
-                self.socketio.emit('ai-message', {
+                await self.sio.emit('aiMessage', {
                     'username': 'System', 
                     'message': f"{echo_time_taken}s<br>{data['message']}",
                     'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                     })
             else:
-                self.socketio.emit('ai-pending',{
+                await self.sio.emit('aiPending',{
                     'username': 'System',
                     'message': "One moment I'm thinking...",
                     'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                 })
                 
-                def process_claude():
-                    claude_start_time = time.time()  
-                    claude_conversation = self.conversations.get_conversation(self.claude_conversation_id)
-                    claude_response = self.claude.process_message(data, claude_conversation)
-                    #claude_response = "response blocked by code comment"
-                    claude_end_time = time.time()
-                    claude_time_taken = claude_end_time - claude_start_time
-                    claude_response_message = {
-                        'username': 'Claude', 
-                        'message': f"{claude_time_taken}s<br>{claude_response}",
-                        'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                async def process_claude():
+                    try:
+                        start_time = time.time()
+                        conversation = self.conversations.get_conversation(self.claude_conversation_id)
+                        response = await asyncio.get_event_loop().run_in_executor(
+                            None, 
+                            self.claude.process_message, 
+                            data, 
+                            conversation
+                        )
+                        end_time = time.time()
+                        response_message = {
+                            'username': 'Claude',
+                            'message': f"{end_time - start_time:.2f}s<br>{response}",
+                            'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                         }
-                    self.conversations.add_message(self.claude_conversation_id, claude_response_message)
-                    self.conversations.trunctate_history(self.claude_conversation_id)
-                    self.socketio.emit('ai-response', claude_response_message)
+                        self.conversations.add_message(self.claude_conversation_id, response_message)
+                        self.conversations.trunctate_history(self.claude_conversation_id)
+                        await self.sio.emit('aiResponse', response_message)
+                    except Exception as e:
+                        print(f"Claude Error: {e}")
 
-                def process_gemini():
-                    gemini_start_time = time.time()
-                    gemini_coversation = self.conversations.get_conversation(self.gemini_conversation_id)
-                    #gemini_response = self.gemini.process_message(data, gemini_coversation)
-                    gemini_response = "response blocked by code comment"
-                    gemini_end_time = time.time()
-                    gemini_time_taken = gemini_end_time - gemini_start_time
-                    gemini_response_message = {
-                        'username': 'Gemini', 
-                        'message': f"{gemini_time_taken}s<br>{gemini_response}",
-                        'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                async def process_gemini():
+                    try:
+                        start_time = time.time()
+                        conversation = self.conversations.get_conversation(self.gemini_conversation_id)
+                        response = await asyncio.get_event_loop().run_in_executor(
+                            None,
+                            self.gemini.process_message,
+                            data,
+                            conversation
+                        )
+                        end_time = time.time()
+                        response_message = {
+                            'username': 'Gemini',
+                            'message': f"{end_time - start_time:.2f}s<br>{response}",
+                            'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                         }
-                    self.conversations.add_message(self.gemini_conversation_id, gemini_response_message)
-                    self.conversations.trunctate_history(self.gemini_conversation_id)
-                    self.socketio.emit('ai-response', gemini_response_message)
+                        self.conversations.add_message(self.gemini_conversation_id, response_message)
+                        self.conversations.trunctate_history(self.gemini_conversation_id)
+                        await self.sio.emit('aiResponse', response_message)
+                    except Exception as e:
+                        print(f"Gemini Error: {e}")
 
-                def process_openai():
-                    openai_start_time = time.time()        
-                    openai_conversation = self.conversations.get_conversation(self.openai_conversation_id)
-                    openai_response = self.openai.process_message(data, openai_conversation)
-                    #openai_response = "response blocked by code comment"
-                    openai_response = self.openai.clean_response(openai_response)
-                    openai_end_time = time.time()
-                    openai_time_taken = openai_end_time - openai_start_time
-                    openai_response_message = {
-                        'username': 'OpenAI', 
-                        'message': f"{openai_time_taken}s<br>{openai_response}",
-                        'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                async def process_openai():
+                    try:
+                        start_time = time.time()
+                        conversation = self.conversations.get_conversation(self.openai_conversation_id)
+                        response = await asyncio.get_event_loop().run_in_executor(
+                            None,
+                            self.openai.process_message,
+                            data,
+                            conversation
+                        )
+                        response = self.openai.clean_response(response)
+                        end_time = time.time()
+                        response_message = {
+                            'username': 'OpenAI',
+                            'message': f"{end_time - start_time:.2f}s<br>{response}",
+                            'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                         }
-                    self.conversations.add_message(self.openai_conversation_id, openai_response_message)
-                    self.conversations.trunctate_history(self.openai_conversation_id)
-                    self.socketio.emit('ai-response', openai_response_message)
+                        self.conversations.add_message(self.openai_conversation_id, response_message)
+                        self.conversations.trunctate_history(self.openai_conversation_id)
+                        await self.sio.emit('aiResponse', response_message)
+                    except Exception as e:
+                        print(f"OpenAI Error: {e}")
 
-                threads = []
-                threads.append(threading.Thread(target=process_claude))
-                threads.append(threading.Thread(target=process_gemini))
-                threads.append(threading.Thread(target=process_openai))
+                # Launch all processes independently
+                asyncio.create_task(process_claude())
+                asyncio.create_task(process_gemini())
+                asyncio.create_task(process_openai())
 
-                for thread in threads:
-                    thread.start()
 
-                for thread in threads:
-                    thread.join()
-
-        @self.socketio.on('reset-user-chat')
-        def resetUserChat():
+        @self.sio.event
+        async def resetUserChat(client_id):
             self.conversations.reset_conversation(self.users_conversation_id)
-            self.socketio.emit('reset-user-chat')
+            await self.sio.emit('resetUserChat')
             print("Reset user chats")
 
-        @self.socketio.on('reset-ai-chats')
-        def resetAiChats():
+        @self.sio.event
+        async def resetAiChats(client_id):
             self.conversations.reset_conversation(self.claude_conversation_id)
             self.conversations.reset_conversation(self.gemini_conversation_id)
             self.conversations.reset_conversation(self.openai_conversation_id)
-            self.socketio.emit('reset-ai-chats')
+            await self.sio.emit('resetAiChats')
             print("Reset ai chats")
 
 
@@ -278,13 +292,13 @@ class WebSrvr:
             self.aws_secret_access_key = None
 
     def run(self):
-        print(f"Running Flask app on {self.host}:{self.port}")
-        self.socketio.run(self.app, host=self.host, port=self.port, allow_unsafe_werkzeug=True)
+        import uvicorn
+        uvicorn.run(self.app, host=self.host, port=self.port)
 
 if __name__ == "__main__":
     HOST = "0.0.0.0"
     PORT = 3004
     print("Initializing server")
-    MyWebSrvr = WebSrvr(host=HOST, port=PORT)
+    server = WebSrvr(host=HOST, port=PORT)
     print("Starting server")
-    MyWebSrvr.run()
+    server.run()

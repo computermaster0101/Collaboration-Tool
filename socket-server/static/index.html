@@ -439,8 +439,8 @@
       <button id="fullscreen-button">Full Screen</button>
     </div>
 
-    <script type="module" src="index.tsx"></script>
-    <!-- <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <!-- <script type="module" src="index.tsx"></script> -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
     <script src="https://unpkg.com/@excalidraw/excalidraw@latest/dist/excalidraw.production.min.js" defer></script>
     <script>
@@ -456,14 +456,13 @@
           })
         );
       });
-    </script> -->
+    </script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.8.1/socket.io.js" integrity="sha512-8BHxHDLsOHx+flIrQ0DrZcea7MkHqRU5GbTHmbdzMRnAaoCIkZ97PqZcXJkKZckMMhqfoeaJE+DNUVuyoQsO3Q==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
     <script>
       document.addEventListener('DOMContentLoaded', () => {
         try {
           const mysockets = io({
-            path: '/sockets/socket.io',
             transports: ['websocket'],
             forceNew: true
           });

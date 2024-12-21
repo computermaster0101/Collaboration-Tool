@@ -4,7 +4,7 @@ class ConversationHandler:
 
     def __init__(self) -> None:
         print("ConversationHandler.__init__") if debug else None
-        self.max_history = 40
+        self.max_history = 50
         self.conversations = {}
         self.conversation = []
 

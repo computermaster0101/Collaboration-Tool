@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>AI Control Interface</title>
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, shrink-to-fit=no"
+    />
+    <style>
+      body, html {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      }
+      .container {
+        display: flex;
+        flex-direction: row;
+        height: 100vh;
+        width: 100vw;
+      }
+      .visible {
+        visibility: visible;
+        flex: 1;
+        width: auto;
+        opacity: 1;
+        z-index: 1;
+        transition: flex 0.5s ease-in-out, opacity 0.5s ease-in-out, width 0.5s ease-in-out;
+      }
+      .invisible {
+        flex: 0;
+        width: 0;
+        opacity: 0;
+        z-index: -1;
+        transition: flex 0.5s ease-in-out, opacity 0.5s ease-in-out, width 0.5s ease-in-out;
+        pointer-events: none; 
+      }
+      .left {
+        border: none;
+        height: 100vh;
+      }
+      .right {
+        flex: 2;
+        border: none;
+        height: 100vh;
+        min-width: 50px;
+      }
+      #control-panel {
+        position: fixed;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(255,255,255,0.9);
+        border-radius: 10px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        padding: 10px;
+        display: flex;
+        gap: 10px;
+        z-index: 20;
+      }
+      .header {
+        background-color: #333;
+        color: #fff;
+        text-align: center;
+        padding: 20px 0;
+      }
+      .user-chat-container {
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        padding: 10px;
+        width: 100%; 
+        height: 80vh;
+        box-sizing: border-box;
+      }
+      .chat-header {
+        background-color: #444;
+        color: #fff;
+        padding: 10px;
+        text-align: center;
+        font-weight: bold;
+      }
+      .chat-box {
+        flex: 1;
+        border: 1px solid #ccc;
+        overflow-y: auto;
+        padding: 10px;
+      }
+      .timestamp {
+        color: gray;
+        font-size: 0.85em;
+        margin-right: 5px;
+      }
+      .input-container {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 10px;
+        background-color: #fff;
+        position: sticky;
+        bottom: 0;
+      }
+      .message-input {
+        flex: 1;
+        padding: 10px;
+        font-size: 16px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+      }
+      .button-container {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+      }
+      .button-container button {
+        padding: 10px 20px;
+        margin-left: 10px;
+        font-size: 16px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: background-color 0.3s ease;
+      }
+      .button-container button.send-btn {
+        background-color: #007bff;
+        color: #fff;
+      }
+      .button-container button.reset-btn {
+        background-color: #dc3545;
+        color: #fff;
+      }
+      .button-container button.system-prompt-btn {
+        background-color: #28a745;
+        color: #fff;
+      }
+      .button-container button:hover {
+        background-color: #555;
+      }
+      .disabled-button {
+        background-color: #cccccc;
+        color: #666666;
+        cursor: not-allowed;
+      }
+      .spinner {
+        display: inline-block;
+        width: 24px;
+        height: 24px;
+        border: 3px solid rgba(0, 0, 0, 0.1);
+        border-radius: 50%;
+        border-top-color: #007bff;
+        animation: spin 1s ease-in-out infinite;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      .popup {
+        display: none;
+        position: fixed;
+        top: 25%;
+        left: 25%;
+        transform: translate(-25%, -25%);
+        background-color: #ffffff;
+        border: 1px solid #ccc;
+        padding: 20px;
+        z-index: 1000;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        border-radius: 8px; 
+        width: 95%; 
+        height: 80%;
+      }
+      .overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.5);
+        z-index: 999;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="container">
+      <div id="chat" class="left invisible chat-wrapper">
+        <div class="header">
+          <h1>User Chat</h1>
+          <div class="chat-header user-info"></div>
+        </div>
+        <div class="user-chat-container">
+          <div class="chat-box" id="chat-messages"></div>
+        </div>
+        <div class="input-container">
+          <input type="text" class="message-input" id="message-input" placeholder="Type your message here">
+          <div class="button-container">
+            <button type="submit" class="send-btn" id="send-message-btn">Send</button>
+            <button type="button" class="reset-btn" id="reset-messages-btn">Reset</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="ai" class="left invisible chat-wrapper">
+        <div class="header">
+          <h1>AI Control</h1>
+          <div class="chat-header user-info"></div>
+        </div>
+        <div class="user-chat-container">
+          <div class="chat-box" id="ai-messages">
+            <div>
+              <strong>Claude:</strong> Hello! I'm here to help you control this computer. I can:
+              - Click and interact with elements on screen
+              - Type text and press keys
+              - Take screenshots
+              - Help you navigate and use applications
+              
+              Just let me know what you'd like me to do!
+            </div>
+          </div>
+        </div>
+        <div class="input-container">
+          <input type="text" class="message-input" id="prompt-input" placeholder="Tell Claude what to do...">
+          <div class="button-container">
+            <button type="submit" class="send-btn" id="send-prompt-btn">Send</button>
+            <button type="button" class="reset-btn" id="reset-prompts-btn">Reset</button>
+            <button type="button" class="system-prompt-btn" onclick="openPrompt()">System Prompt</button>
+          </div>
+        </div>
+        <div class="overlay" id="overlay"></div>
+        <div class="popup" id="popup">
+          <label for="paragraphInput">System Prompt:</label><br>
+          <textarea id="paragraphInput" rows="4" cols="50"></textarea><br><br>
+          <button onclick="hidePopup()">OK</button>
+        </div>
+      </div>
+
+      <iframe id="vnc" src="/novnc/vnc.html?autoconnect=true&resize=scale&autoconnect=1&reconnect=1&reconnect_delay=2000" class="right" allow="fullscreen"></iframe>
+    </div>
+    
+    <div id="control-panel">
+      <button id="ai-button">Show AI Chat</button>
+      <button id="chat-button">Show User Chat</button>
+      <button id="fullscreen-button">Full Screen</button>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.8.1/socket.io.js"></script>
+    <script>
+      document.addEventListener('DOMContentLoaded', () => {
+        try {
+          const socket = io({
+            transports: ['websocket'],
+            forceNew: true
+          });
+
+          // Control panel elements
+          const aiContainer = document.getElementById('ai');
+          const aiButton = document.getElementById('ai-button');
+          const chatContainer = document.getElementById('chat');
+          const chatButton = document.getElementById('chat-button')
+          const fullscreenButton = document.getElementById('fullscreen-button');
+
+          // Chat elements  
+          const messageInput = document.getElementById('message-input');
+          const promptInput = document.getElementById('prompt-input');
+          const sendMessageBtn = document.getElementById('send-message-btn');
+          const sendPromptBtn = document.getElementById('send-prompt-btn');
+          const resetMessagesBtn = document.getElementById('reset-messages-btn');
+          const resetPromptsBtn = document.getElementById('reset-prompts-btn');
+          const chatMessages = document.getElementById('chat-messages');
+          const aiMessages = document.getElementById('ai-messages');
+
+          let username = '';
+
+          // UI toggle handlers
+          aiButton.addEventListener('click', () => {
+            aiContainer.classList.toggle('invisible');
+          });
+
+          chatButton.addEventListener('click', () => {
+            chatContainer.classList.toggle('invisible');
+          });
+
+          fullscreenButton.addEventListener('click', () => {
+            if (!document.fullscreenElement) {
+              document.documentElement.requestFullscreen();
+              fullscreenButton.textContent = 'Exit Full Screen';
+            } else {
+              document.exitFullscreen();
+              fullscreenButton.textContent = 'Full Screen';
+            }
+          });
+
+          // Chat message handlers
+          function appendMessage(container, data) {
+            const messageDiv = document.createElement('div');
+            const timestamp = document.createElement('span');
+            timestamp.className = 'timestamp';
+            timestamp.textContent = data.timestamp;
+            
+            const content = document.createElement('span');
+            content.innerHTML = `<strong>${data.username}:</strong> ${data.message}`;
+            
+            messageDiv.appendChild(timestamp);
+            messageDiv.appendChild(content);
+            
+            if (data.image) {
+              const img = document.createElement('img');
+              img.src = `data:image/png;base64,${data.image}`;
+              img.style.maxWidth = '100%';
+              messageDiv.appendChild(img);
+            }
+            
+            container.appendChild(messageDiv);
+            container.scrollTop = container.scrollHeight;
+          }
+
+          sendMessageBtn.addEventListener('click', () => {
+            const message = messageInput.value.trim();
+            if (message) {
+              socket.emit('userMessage', { message });
+              messageInput.value = '';
+            }
+          });
+
+          sendPromptBtn.addEventListener('click', () => {
+            const message = promptInput.value.trim();
+            if (message) {
+              socket.emit('aiPrompt', { message });
+              promptInput.value = '';
+            }
+          });
+
+          messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault();
+              sendMessageBtn.click();
+            }
+          });
+
+          promptInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault();
+              sendPromptBtn.click();
+            }
+          });
+
+          resetMessagesBtn.addEventListener('click', () => {
+            chatMessages.innerHTML = '';
+          });
+
+          resetPromptsBtn.addEventListener('click', () => {
+            aiMessages.innerHTML = '';
+          });
+
+          // Socket event handlers
+          socket.on('connect', () => {
+            console.log('Connected to server');
+          });
+
+          socket.on('disconnect', () => {
+            console.log('Disconnected from server');
+          });
+
+          socket.on('set_username_cookie', (data) => {
+            document.cookie = `username=${data.username}`;
+            username = data.username;
+          });
+
+          socket.on('welcome', (data) => {
+            username = data.username;
+            document.querySelectorAll('.user-info').forEach(el => {
+              el.textContent = `Connected as: ${username}`;
+            });
+          });
+
+          socket.on('history', (data) => {
+            chatMessages.innerHTML = '';
+            aiMessages.innerHTML = '';
+            
+            data.users.forEach(msg => appendMessage(chatMessages, msg));
+            data.claude.forEach(msg => appendMessage(aiMessages, msg));
+          });
+
+          socket.on('systemMessage', (data) => {
+            appendMessage(chatMessages, data);
+            appendMessage(aiMessages, data);
+          });
+
+          socket.on('userMessage', (data) => {
+            appendMessage(chatMessages, data);
+          });
+
+          socket.on('aiMessage', (data) => {
+            appendMessage(aiMessages, data);
+          });
+
+          socket.on('aiResponse', (data) => {
+            appendMessage(aiMessages, data);
+          });
+
+          socket.on('aiPending', (data) => {
+            appendMessage(aiMessages, data);
+          });
+
+          socket.on('computerResult', (data) => {
+            appendMessage(aiMessages, data);
+          });
+
+          socket.on('computerError', (data) => {
+            appendMessage(aiMessages, data);
+          });
+
+        } catch (error) {
+          console.error('Error initializing:', error);
+        }
+      });
+
+      // System prompt handlers
+      function openPrompt() {
+        document.getElementById('overlay').style.display = 'block';
+        document.getElementById('popup').style.display = 'block';
+        // Load prompt
+        fetch('/system_prompt.txt')
+          .then(response => response.text())
+          .then(text => {
+            document.getElementById('paragraphInput').value = text;
+          });
+      }
+
+      function hidePopup() {
+        document.getElementById('overlay').style.display = 'none';
+        document.getElementById('popup').style.display = 'none';
+        // Save prompt
+        const prompt = document.getElementById('paragraphInput').value;
+        const blob = new Blob([prompt], { type: 'text/plain' });
+        const form = new FormData();
+        form.append('file', blob, 'system_prompt.txt');
+        fetch('/system_prompt.txt', { method: 'PUT', body: form });
+      }
+    </script>
+  </body>
+</html>
