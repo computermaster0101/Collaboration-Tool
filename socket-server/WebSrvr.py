@@ -41,8 +41,18 @@ class WebSrvr:
         self.connected_users = {}
         self.active_mode = None 
         self.draw_status = False
-        self.conversations = ConversationHandler()
 
+        with open('default_system_prompt.txt', 'r') as file:
+            system_prompt = file.read().strip()
+
+        self.model_options = {
+            'system_prompt': system_prompt,
+            'temp': 0.5,
+            'top_p': 1,
+            'max_tokens': 1000
+        }
+        
+        self.conversations = ConversationHandler()
         self.static_conversation_key = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(20))
         self.users_conversation_id = self.conversations.create_conversation(f'{self.static_conversation_key}-users')
         self.claude_conversation_id = self.conversations.create_conversation(f'{self.static_conversation_key}-claude')
@@ -60,10 +70,6 @@ class WebSrvr:
         @self.app.get('/favicon.ico')
         async def favicon():
             return FileResponse('static/favicon.ico')
-        
-        @self.app.get('/system_prompt.txt')
-        async def system_prompt():
-            return FileResponse('static/system_prompt.txt') 
         
     def setup_socket_events(self):
         @self.sio.event
@@ -86,7 +92,7 @@ class WebSrvr:
                 if not username:
                     username = f"user_{secrets.randbelow(9000) + 1000}"
                     # Set cookie through socket.io
-                    await self.sio.emit('set_username_cookie', {'username': username}, room=client_id)
+                    await self.sio.emit('set_username_cookie', {'username': username}, to=client_id)
 
                 timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                 self.connected_users[client_id] = username
@@ -111,9 +117,11 @@ class WebSrvr:
                     await self.sio.emit('toggle', {'mode': self.active_mode}, to=client_id)
                 if self.draw_status:
                     await self.sio.emit('toggleStatus', to=client_id)
-                await self.sio.emit('history', history, room=client_id)
-                await self.sio.emit('welcome', connected_user, room=client_id)
+                await self.sio.emit('updateModelOptions', self.model_options, to=client_id)
+                await self.sio.emit('history', history, to=client_id)
+                await self.sio.emit('welcome', connected_user, to=client_id)
                 await self.sio.emit('systemMessage', message_object, skip_sid=client_id)
+
                 self.conversations.add_message(self.users_conversation_id, message_object)
                 self.conversations.add_message(self.claude_conversation_id, message_object)
                 self.conversations.add_message(self.gemini_conversation_id, message_object)
@@ -145,7 +153,10 @@ class WebSrvr:
             mode = data.get('mode')
             if mode:
                 print(f"Toggle mode requested by {client_id}: {mode}")
-                self.active_mode = mode
+                if self.active_mode == mode:
+                    self.active_mode = None
+                else:
+                    self.active_mode = mode
                 await self.sio.emit('toggle', {'mode': mode}, skip_sid=client_id)
 
         @self.sio.event
@@ -269,6 +280,17 @@ class WebSrvr:
                 asyncio.create_task(process_claude())
                 asyncio.create_task(process_gemini())
                 asyncio.create_task(process_openai())
+
+        @self.sio.event
+        async def updateModelOptions(client_id, data):
+            self.model_options = {
+                'system_prompt': data['system_prompt'],
+                'temp': data['temp'],
+                'top_p': data['top_p'],
+                'max_tokens': data['max_tokens']
+            }
+            await self.sio.emit('updateModelOptions', self.model_options, skip_sid=client_id)
+            print("Model options updated")
 
         @self.sio.event
         async def resetUserChat(client_id):

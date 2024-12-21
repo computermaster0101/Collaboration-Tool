@@ -143,14 +143,10 @@ RUN git clone https://github.com/anthropics/anthropic-quickstarts.git /opt/anthr
     && python -m pip install -r ~/computer_use_demo/requirements.txt
 
 COPY excalidraw/index.html.template /opt/excalidraw/excalidraw-app
-COPY excalidraw/system_prompt.txt /opt/excalidraw/excalidraw-app
 COPY computer_use_demo /home/root
 COPY nginx.conf.template /etc/nginx/nginx.conf.template
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
-
-
-
 
 COPY socket-server /opt/socket-server
 WORKDIR /opt/socket-server
