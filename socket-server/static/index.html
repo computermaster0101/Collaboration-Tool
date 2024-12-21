@@ -401,7 +401,7 @@
           <div class="button-container">
             <button type="submit" class="send-btn" id="send-prompt-btn">Send</button>
             <button type="button" class="reset-btn" id="reset-prompts-btn">Reset</button>
-            <button type="button" class="system-prompt-btn" onclick="openPrompt()">System Prompt</button>  
+            <button type="button" class="system-prompt-btn" id="openModelOptionsButton">Model Options</button>  
           </div>
         </div>
         <div class="overlay" id="overlay"></div>
@@ -422,7 +422,7 @@
           </div>
           <label for="paragraphInput">System Prompt:</label><br>
           <textarea id="paragraphInput" rows="4" cols="50"></textarea><br><br>
-          <button onclick="hidePopup()">OK</button>
+          <button id="saveModelOptionsButton">OK</button>
         </div>
       </div>
       <iframe id="anthropic" src="${SERVICE_URL}/anthropic/" class="left invisible" allow="fullscreen"></iframe>
@@ -604,6 +604,8 @@
           const topPInput = document.getElementById('top_p')
           const maxTokenInput = document.getElementById('max_token')
           const systemPromptInput = document.getElementById('paragraphInput')
+          const saveModelOptionsButton = document.getElementById('saveModelOptionsButton')
+          const openModelOptionsButton = document.getElementById('openModelOptionsButton')
 
           function addSystemMessage(message, timestamp) {
             const messageElement = document.createElement('div');
@@ -793,11 +795,32 @@
             addAIMessage('System', `${data.message} <span class="spinner"></span>`, data.timestamp, 'thinking-message');
           });
           
+          mysockets.on('updateModelOptions', function(data) {
+            if (data) {
+              if (data.temp !== undefined) {
+                  document.getElementById('temp').value = data.temp;
+              }
+              if (data.top_p !== undefined) {
+                  document.getElementById('top_p').value = data.top_p;
+              }
+              if (data.max_tokens !== undefined) {
+                  document.getElementById('max_token').value = data.max_tokens;
+              }
+              if (data.system_prompt !== undefined) {
+                  document.getElementById('paragraphInput').value = data.system_prompt;
+              }
+            }
+          });
+
+
           sendMessageButton.addEventListener('click',sendMessage)
           sendPromptButton.addEventListener('click',sendPrompt)
 
           resetMessagesButton.addEventListener('click', resetUserChat)
           resetPromptsButton.addEventListener('click', resetAIChats)
+
+          saveModelOptionsButton.addEventListener('click', updateModelOptions)
+          openModelOptionsButton.addEventListener('click', openModelOptions)
 
           messageInput.addEventListener('keypress', function(event) {
             if (event.key === 'Enter') {
@@ -812,25 +835,35 @@
             }
           });
 
+          function openModelOptions() {
+            document.getElementById('overlay').style.display = 'block';
+            document.getElementById('popup').style.display = 'block';
+          }
+          
+          function updateModelOptions() {
+            document.getElementById('overlay').style.display = 'none';
+            document.getElementById('popup').style.display = 'none';
+            // Get current values from the popup inputs
+            const temp = parseFloat(document.getElementById('temp').value);
+            const top_p = parseFloat(document.getElementById('top_p').value);
+            const max_tokens = parseInt(document.getElementById('max_token').value);
+            const system_prompt = document.getElementById('paragraphInput').value;
+
+            // Create the model_options object
+            const model_options = {
+                temp: temp,
+                top_p: top_p,
+                max_tokens: max_tokens,
+                system_prompt: system_prompt
+            };
+
+            // Emit the updated model options
+            mysockets.emit('updateModelOptions', model_options);
+          }
+
         } catch (error) {
           console.error('Initialization error:', error);
-        }
-      });
-
-      function openPrompt() {
-        document.getElementById('overlay').style.display = 'block';
-        document.getElementById('popup').style.display = 'block';
-      }
-      
-      function hidePopup() {
-          document.getElementById('overlay').style.display = 'none';
-          document.getElementById('popup').style.display = 'none';
-      }
-      
-      $(document).ready(function(){
-        $.get("system_prompt.txt", function(data) {
-          $("#paragraphInput").val(data);
-        });
+        }  
       });
     </script>
       
