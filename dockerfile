@@ -20,8 +20,8 @@ ENV ROOM_SERVER_MAX_CLIENTS=10
 ENV STREAMLIT_SERVER_PORT=3003
 
 ARG DISPLAY_NUM=1
-ARG HEIGHT=768
-ARG WIDTH=1024
+ARG HEIGHT=800
+ARG WIDTH=1280
 ENV DISPLAY_NUM=$DISPLAY_NUM
 ENV HEIGHT=$HEIGHT
 ENV WIDTH=$WIDTH
@@ -167,7 +167,7 @@ RUN mkdir -p /etc/chromium/policies/managed && \
     }' > /etc/chromium/policies/managed/policy.json
 
 RUN echo "#!/bin/bash\n\
-    Xvfb :1 -screen 0 1024x768x24 &\n\
+    Xvfb :1 -screen 0 1280x800x24 &\n\
     export DISPLAY=:1\n\
     fluxbox &\n\
     x11vnc -forever -nopw -shared -rfbport 5900 -display :1 &\n\
