@@ -11,11 +11,10 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from socketio import AsyncServer, ASGIApp
 
-from MyOpenAI import MyOpenAI
-from BedrockHandler import Claude
-from GeminiHandler import MyGemini
-
-from ConversationHandler import ConversationHandler
+from handlers.OpenAIHandler import MyOpenAI
+from handlers.BedrockHandler import Claude
+from handlers.GeminiHandler import MyGemini
+from handlers.ConversationHandler import ConversationHandler
 
 class WebSrvr:
     def __init__(self, host='127.0.0.1', port=3004):      
@@ -270,7 +269,6 @@ class WebSrvr:
                 asyncio.create_task(process_claude())
                 asyncio.create_task(process_gemini())
                 asyncio.create_task(process_openai())
-
 
         @self.sio.event
         async def resetUserChat(client_id):

@@ -10,8 +10,7 @@ class MyOpenAI:
     def __init__(self, api_key) -> None:
         print("MyOpenAI.__init__") if debug else None
         self.client = OpenAI(api_key=api_key)
-        self.model = "gpt-3.5-turbo-0125"
-        # self.model = "gpt-4"
+        self.model = "gpt-4o-mini"
     
     def __str__(self):
         print("MyOpenAI.__str__") if debug else None

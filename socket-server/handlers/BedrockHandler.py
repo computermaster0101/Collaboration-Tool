@@ -15,6 +15,7 @@ class Claude:
         )
         self.bedrock = self.session.client('bedrock')
         self.bedrock_runtime = self.session.client('bedrock-runtime')
+        self.model_id = 'us.anthropic.claude-3-5-sonnet-20241022-v2:0'
 
 
     def format_conversation(self, conversation):
@@ -44,7 +45,7 @@ class Claude:
             # The actual call to retrieve an answer from the model
             response = self.bedrock_runtime.invoke_model(
                 body=json.dumps(body),
-                modelId="anthropic.claude-3-sonnet-20240229-v1:0",
+                modelId=self.model_id,
                 accept='application/json',
                 contentType='application/json'
             )

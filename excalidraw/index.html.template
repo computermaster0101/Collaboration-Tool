@@ -747,11 +747,13 @@
           mysockets.on('history', function(data){
             const aiHistory = data.claude.concat(data.gemini).concat(data.openai);
             const uniqueAIHistory = Array.from(new Set(aiHistory.map(JSON.stringify))).map(JSON.parse);
+            uniqueAIHistory.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
             uniqueAIHistory.forEach(function(message) {
               addAIMessage(message.username, message.message, message.timestamp);
             });
             
             const userHistory = data.users;
+            userHistory.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
             userHistory.forEach(function(message) {
               addUserMessage(message.username, message.message, message.timestamp);
             });
