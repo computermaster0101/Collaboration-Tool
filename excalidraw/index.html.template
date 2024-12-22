@@ -429,7 +429,7 @@
         </div>
       </div>
       <iframe id="anthropic" src="${SERVICE_URL}/anthropic/" class="left invisible" allow="fullscreen"></iframe>
-      <iframe id="vnc" src="${SERVICE_URL}/novnc/vnc.html?autoconnect=true&resize=scale&autoconnect=1&reconnect=1&reconnect_delay=2000" class="right" allow="fullscreen"></iframe>
+      <iframe id="vnc" src="${SERVICE_URL}/novnc/vnc.html?autoconnect=true&resize=scale&reconnect=1&reconnect_delay=2000" class="right" allow="fullscreen"></iframe>
       <div id="root" class="invisible"></div>
     </div>
     
