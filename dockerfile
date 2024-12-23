@@ -1,7 +1,7 @@
 FROM docker.io/ubuntu:22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
-ENV KIOSK_URL="http://localhost:8080/anthropic/"
+ENV KIOSK_URL="http://localhost:3003/"
 ENV VITE_APP_WS_SERVER_URL="http://excalidraw-room.localhost:8080/"
 ENV ROOM_DOMAIN_ADDRESS="excalidraw-room.localhost"
 ENV DOMAIN_ADDRESS="localhost"
