@@ -434,13 +434,13 @@
     </div>
     
     <div id="control-panel">
-      <button id="draw-button">Show Draw</button>
-      <button id="draw-status-button" class="disabled-button">Disable Draw</button>
-      <button id="anthropic-button">Show Claude</button>
-      <button id="desktop-status-button" class="disabled-button">Disable Desktop</button>
-      <button id="ai-button">Show AI Chat</button>
-      <button id="chat-button">Show User Chat</button>
-      <button id="fullscreen-button">Full Screen</button>
+      <button id="draw-button">SHOW DRAW</button>
+      <button id="draw-status-button" class="disabled-button">DISABLE DRAW</button>
+      <button id="anthropic-button">SHOW CLAUDE</button>
+      <button id="desktop-status-button" class="disabled-button">DISABLE DESKTOP</button>
+      <button id="ai-button">SHOW AI</button>
+      <button id="chat-button">SHOW CHAT</button>
+      <button id="fullscreen-button">FULL SCREEN</button>
     </div>
 
     <script type="module" src="index.tsx"></script>
@@ -497,10 +497,10 @@
           fullscreenButton.addEventListener('click', () => {
             if (!document.fullscreenElement) {
               document.documentElement.requestFullscreen();
-              fullscreenButton.textContent = 'Exit Full Screen';
+              fullscreenButton.textContent = 'EXIT FULL SCREEN';
             } else {
               document.exitFullscreen();
-              fullscreenButton.textContent = 'Full Screen';
+              fullscreenButton.textContent = 'FULL SCREEN';
             }
           });
 
@@ -518,7 +518,7 @@
               window[flag] = false;
               container.classList.remove("visible");
               container.classList.add("invisible");
-              button.textContent = `Show ${key.charAt(0).toUpperCase() + key.slice(1)}`;
+              button.textContent = `SHOW ${key.toUpperCase()}`;
               if (key === "draw") {
                 container.style.pointerEvents = "none";
                 drawStatusButton.classList.add("disabled-button")
@@ -535,7 +535,7 @@
               activeMode = mode;
               container.classList.remove("invisible");
               container.classList.add("visible");
-              button.textContent = `Hide ${mode.charAt(0).toUpperCase() + mode.slice(1)}`;
+              button.textContent = `HIDE ${mode.toUpperCase()}`;
               if (mode === "draw") {
                 if (drawStatus){
                   container.style.pointerEvents = "auto";
@@ -555,10 +555,10 @@
 
           function toggleStatus() {
             if (drawStatus){
-              drawStatusButton.textContent = "Enable Draw"
+              drawStatusButton.textContent = "ENABLE DRAW"
               drawContainer.style.pointerEvents = "none";
             } else {
-              drawStatusButton.textContent = "Disable Draw"
+              drawStatusButton.textContent = "DISABLE DRAW"
               drawContainer.style.pointerEvents = "auto";
             }
             drawStatus = !drawStatus
@@ -566,10 +566,10 @@
 
           function toggleDesktop() {
             if (desktopStatus){
-              desktopStatusButton.textContent = "Enable Desktop"
+              desktopStatusButton.textContent = "ENABLE DESKTOP"
               desktopContainer.style.pointerEvents = "none";
             } else {
-              desktopStatusButton.textContent = "Disable Desktop"
+              desktopStatusButton.textContent = "DISABLE DESKTOP"
               desktopContainer.style.pointerEvents = "auto";
             };
             desktopStatus = !desktopStatus
@@ -781,11 +781,14 @@
           });
 
           mysockets.on('set_username_cookie', (data) => {
-              // Set cookie to expire in 30 days
-              const d = new Date();
-              d.setTime(d.getTime() + (30*24*60*60*1000));
-              const expires = "expires="+ d.toUTCString();
-              document.cookie = "username=" + data.username + ";" + expires + ";path=/";
+            // Set cookie to expire in 30 days
+            const d = new Date();
+            d.setTime(d.getTime() + (30*24*60*60*1000));
+            const expires = "expires="+ d.toUTCString();
+            // Get the current domain
+            const domain = window.location.hostname;
+            const cookieStr = "username=" + data.username + ";" + expires + ";path=/;domain=" + domain;
+            document.cookie = cookieStr;
           });
 
           mysockets.on('history', function(data){

@@ -76,8 +76,8 @@ class WebSrvr:
         @self.sio.event
         async def connect(client_id, environ):
             try:
-                # Check for username cookie in headers
                 headers = environ.get('asgi.scope', {}).get('headers', [])
+                
                 cookie_header = None
                 for name, value in headers:
                     if name.decode('utf-8').lower() == 'cookie':
@@ -86,15 +86,21 @@ class WebSrvr:
 
                 username = None
                 if cookie_header:
-                    # Parse cookies manually since we can't use FastAPI's Cookie dependency here
-                    cookies = dict(cookie.split('=') for cookie in cookie_header.split('; '))
-                    username = cookies.get('username')
+                    try:
+                        cookies = {}
+                        for cookie_str in cookie_header.split('; '):
+                            if '=' in cookie_str:
+                                key, value = cookie_str.split('=', 1)
+                                cookies[key.strip()] = value.strip()
+                        username = cookies.get('username')
+                    except Exception as e:
+                        print(f"Error parsing cookies: {e}")
+                        print(f"Problematic cookie string: {cookie_header}")
 
                 if not username:
                     username = f"user_{secrets.randbelow(9000) + 1000}"
-                    # Set cookie through socket.io
                     await self.sio.emit('set_username_cookie', {'username': username}, to=client_id)
-
+                
                 timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                 self.connected_users[client_id] = username
 
