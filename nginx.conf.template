@@ -75,4 +75,30 @@ http {
             proxy_set_header Host $host;
         }
     }
+
+    server {
+        listen 8080;
+        server_name ${CODE_ROOM_DOMAIN_ADDRESS};
+
+        location / {
+            proxy_pass http://localhost:8100;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection $connection_upgrade;
+            proxy_set_header Host $host;
+        }
+    }
+
+    server {
+        listen 8080;
+        server_name ${CODE_DOMAIN_ADDRESS};
+
+        location / {
+            proxy_pass http://localhost;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection $connection_upgrade;
+            proxy_set_header Host $host;
+        }
+    }
 }

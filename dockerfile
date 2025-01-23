@@ -3,6 +3,8 @@ FROM docker.io/ubuntu:22.04
 ENV DEBIAN_FRONTEND=noninteractive
 ENV KIOSK_URL="http://localhost:3003/"
 ENV VITE_APP_WS_SERVER_URL="http://excalidraw-room.localhost:8080/"
+ENV CODE_ROOM_DOMAIN_ADDRESS="code-room.localhost"
+ENV CODE_DOMAIN_ADDRESS="code.localhost"
 ENV ROOM_DOMAIN_ADDRESS="excalidraw-room.localhost"
 ENV DOMAIN_ADDRESS="localhost"
 ENV SERVICE_URL="http://localhost:8080"
@@ -142,6 +144,16 @@ RUN git clone https://github.com/anthropics/anthropic-quickstarts.git /opt/anthr
     && cp -r /opt/anthropic-quickstart/computer-use-demo/computer_use_demo ~/ \
     && python -m pip install -r ~/computer_use_demo/requirements.txt
 
+RUN git clone https://github.com/coder/code-server.git /opt/code-server \
+    && cd /opt/code-server \
+    && ./install.sh \
+    && SERVICE_URL=https://open-vsx.org/vscode/gallery ITEM_URL=https://open-vsx.org/vscode/item code-server --install-extension typefox.open-collaboration-tools
+
+RUN git clone https://github.com/eclipse-oct/open-collaboration-tools.git /opt/open-collaboration-tools \
+    && cd /opt/open-collaboration-tools \
+    && npm i \
+    && npm run build
+
 COPY excalidraw/index.html.template /opt/excalidraw/excalidraw-app
 COPY computer_use_demo /home/root
 COPY nginx.conf.template /etc/nginx/nginx.conf.template
@@ -151,6 +163,12 @@ RUN chmod +x /entrypoint.sh
 COPY socket-server /opt/socket-server
 WORKDIR /opt/socket-server
 RUN python -m pip install -r requirements.txt
+
+RUN mkdir -p /root/.config/code-server
+RUN echo 'bind-addr: 127.0.0.1:80\n\
+auth: none\n\
+password: helloalice\n\
+cert: false' > /root/.config/code-server/config.yaml
 
 RUN mkdir -p /etc/chromium/policies/managed && \
     echo '{\n\
@@ -189,7 +207,7 @@ RUN echo "#!/bin/bash\n\
         --disable-pinch \
         --overscroll-history-navigation=0 \
         --show-component-extension-options \ 
-        \"\${KIOSK_URL}\"" > /start.sh \
+        \"\${KIOSK_URL}\" \"http://localhost\"" > /start.sh \
     && chmod +x /start.sh
 
 RUN mkdir -p /data && chmod 777 /data
@@ -228,6 +246,21 @@ RUN echo "[supervisord]\n\
     autorestart=true\n\
     user=root\n\
     directory=/opt/socket-server\n\n\
+    [program:code-share]\n\
+    command=npm run start --OCT_ACTIVATE_SIMPLE_LOGIN=true\n\
+    autorestart=true\n\
+    priority=5\n\
+    user=root\n\
+    directory=/opt/open-collaboration-tools\n\n\
+    stdout_logfile=/var/log/code-share-stdout.log\n\
+    stderr_logfile=/var/log/code-share-stderr.log\n\n\
+    [program:code-server]\n\
+    command=code-server --config /root/.config/code-server/config.yaml\n\
+    autorestart=true\n\
+    priority=5\n\
+    user=root\n\
+    stdout_logfile=/var/log/code-server-stdout.log\n\
+    stderr_logfile=/var/log/code-server-stderr.log\n\n\
     [program:nginx]\n\
     command=nginx -g 'daemon off;'\n\
     autorestart=true\n\
